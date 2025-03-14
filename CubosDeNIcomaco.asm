@@ -1,12 +1,12 @@
 .data
-Vector:   .space 40               # Espacio para 10 enteros (4 bytes c/u)
+Vector:   .space 40               
 Sms_0:    .asciiz "Bienvenido a LOS CUBOS DE NICOMACO EN ARREGLO!!!\n"
 Sms_1:    .asciiz "Digite la Cantidad de Cubos a Generar: "
 Sms_:     .asciiz ", "
 Sms_I:    .asciiz " = "
-Str_pow:  .asciiz "^3 = "
-Str_plus: .asciiz " + "
-Str_nl:   .asciiz "\n"
+Sms_pow:  .asciiz "^3 = "
+Sms_plus: .asciiz " + "
+Sms_nl:   .asciiz "\n"
 
 .text
 .globl main
@@ -30,32 +30,39 @@ main:
     li  $t5, 1            # Inicializa primer impar (1)
 
 for:
-    bge  $t0, $t2, imprimir   # Si ya generó t2 cubos, ir a imprimir
-    bge  $t0, 1, general      # Si t0 >= 1, ir a la parte general
-    beq  $t0, 0, casobase     # Si t0 == 0, caso base
+    bge  $t0, $t2, imprimir   # ya generó t2 cubos, imprimir
+    bge  $t0, 1, general      # t0 >= 1, general
+    beq  $t0, 0, casobase     # t0 == 0, caso base
 
 casobase:
     li   $t8, 1            # n = 1
     li   $v0, 1
     move $a0, $t8
     syscall                # Imprime "1"
+
     li   $v0, 4
-    la   $a0, Str_pow
+    la   $a0, Sms_pow
     syscall                # Imprime "^3 = "
+
     move $t3, $t5          # t3 = 1 (primer impar)
     addi $t5, $t5, 2       # Actualiza siguiente impar (pasa a 3)
+
     li   $v0, 1
     move $a0, $t3
     syscall                # Imprime "1"
+
     li   $v0, 4
     la   $a0, Sms_I
     syscall                # Imprime " = "
+
     li   $v0, 1
     move $a0, $t3
     syscall                # Imprime "1"
+
     li   $v0, 4
-    la   $a0, Str_nl
+    la   $a0, Sms_nl
     syscall                # Imprime salto de línea
+
     sw   $t3, 0($t1)       # Guarda cubo en el arreglo
     addi $t1, $t1, 4
     addi $t0, $t0, 1       # Incrementa contador de cubos
@@ -67,7 +74,7 @@ general:
     move $a0, $t8
     syscall                # Imprime n
     li   $v0, 4
-    la   $a0, Str_pow
+    la   $a0, Sms_pow
     syscall                # Imprime "^3 = "
     li   $t6, 0            # Acumulador para suma de impares
     li   $t7, 0            # Contador de impares
@@ -80,6 +87,7 @@ print_impar:
     li   $v0, 1
     move $a0, $t5
     syscall                # Imprime el impar actual
+
     add  $t6, $t6, $t5     # Acumula el impar
     addi $t5, $t5, 2       # Actualiza al siguiente impar
     addi $t7, $t7, 1       # Incrementa contador de impares
@@ -87,7 +95,7 @@ print_impar:
 
 print_plus:
     li   $v0, 4
-    la   $a0, Str_plus
+    la   $a0, Sms_plus
     syscall                # Imprime " + "
     j    print_impar
 
@@ -99,8 +107,9 @@ exit_sum:
     move $a0, $t6
     syscall                # Imprime el resultado (cubo)
     li   $v0, 4
-    la   $a0, Str_nl
+    la   $a0, Sms_nl
     syscall                # Imprime salto de línea
+                   
     sw   $t6, 0($t1)       # Guarda cubo en el arreglo
     addi $t1, $t1, 4
     addi $t0, $t0, 1       # Incrementa contador de cubos
