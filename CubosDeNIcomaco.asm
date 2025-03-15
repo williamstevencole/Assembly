@@ -36,6 +36,7 @@ for:
 
 casobase:
     li   $t8, 1            # n = 1
+    
     li   $v0, 1
     move $a0, $t8
     syscall                # Imprime "1"
