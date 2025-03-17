@@ -9,9 +9,13 @@
 	Sms_I:.asciiz " = "
 
 	Sms_FiboCantidad:.asciiz "\nIngrese la cantidad de numeros de fibonacci que desea generar: "
-	Sms_Fibo:.asciiz "\nLos numeros de fibonacci generados son los siguientes: "
+  	Sms_Fibo:.asciiz "\nLos numeros de fibonacci generados son los siguientes: "
 	Sms_sumaFibo:.asciiz "\nLa suma de los numeros generados es la siguiente: "
 
+	Sms_NicoCantidad:.asciiz "\nIngrese la cantidad de cubos de Nicomaco que desea generar: "
+	Sms_Nico:.asciiz "\nLos cubos de Nicomaco generados son los siguientes: "
+	Sms_sumaNico:.asciiz "\nLa suma de los cubos generados es la siguiente: "
+	Sms_Cubo:.asciiz "^3 = "
 
 	Sms_Op1:.asciiz "\nEsta es opcion 1\n"
 	Sms_Op2:.asciiz "\nEsta es opcion 2\n"
@@ -32,20 +36,20 @@ main:
 	li $v0, 4
 	la $a0, Sms_0
 	syscall
-	
+
 	li $v0, 4
 	la $a0, Sms_Menu
 	syscall
-	
+
 	li $v0,5
 	syscall
 	move $t0,$v0
-		
+
 	beq $t0, 1, opcion1
 	beq $t0, 2, opcion2
 	beq $t0, 3, opcion3
 	beq $t0, 4, salir
-	
+
 	j main
 
 
@@ -154,12 +158,45 @@ fiboFin:
 
 
 #================================================================================================================================================================
-opcion2:
-    li $v0, 4
-    la $a0, Sms_Op2
-    syscall                   # Imprime "Esta es opcion 2"
-    j main
+#Opcion 2: Cubos de Nicomaco
 
+#VARIABLES A UTIlIZAR:
+#t0: contador de cubos
+#t1: direccion de memoria
+#t2: cantidad de cubos a generar
+
+
+#t3: sumar numeros
+#t4: contador interno de numeros a sumar para cada cubo
+#t5: numeros impares
+
+#proceso a seguir:
+# t2 es la cantidad a generar, si t4 es igual a t2, se imprime la suma de los cubos
+# si t4 es menor a t2, se sigue sumando los cubos
+
+#El proceso de los cubos sera el siguiente:
+#Para cada t4, digamos para t4=1 solo se sumara t5=1, despues se sumara t5=t5+2 
+#y se pasara al siguiente cubo, sumando a t4++ y t0++
+
+#PAra el sigueinte, ya tendremos que t4 sera igual a 2, y se sumara t5, y  despues t5=5, y asi sucesivamente
+
+opcion2:
+
+	li $t4, 1
+	li $t5, 1
+
+    li $v0, 4
+	la $a0, Sms_NicoCantidad
+	syscall
+
+	li $v0, 5
+	syscall
+	move $t2, $v0
+
+	j nico
+
+
+#================================================================================================================================================================
 opcion3:
 	li $v0, 4
 	la $a0, Sms_Op3
