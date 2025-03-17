@@ -1,22 +1,28 @@
 .data
 	Vector: .space 40
 
-
+	#Mensajes generales
 	Sms_0:.asciiz "Bienvenido al menu!!!\n"
 	Sms_Menu:.asciiz "\n 1) Fibonacci\n 2) Cubos de Nicomaco\n 3) Sucesion de potencia\n 4) Salir \nIngrese una opcion: "
 	Sms_Dash:.asciiz "\n\n========================================================================================================================================================\n"
 	Sms_Comma:.asciiz " + "
 	Sms_I:.asciiz " = "
 
+	#Fibonacci
 	Sms_FiboCantidad:.asciiz "\nIngrese la cantidad de numeros de fibonacci que desea generar: "
   	Sms_Fibo:.asciiz "\nLos numeros de fibonacci generados son los siguientes: "
 	Sms_sumaFibo:.asciiz "\nLa suma de los numeros generados es la siguiente: "
 
+	#Nicomaco
 	Sms_NicoCantidad:.asciiz "\nIngrese la cantidad de cubos de Nicomaco que desea generar: "
 	Sms_Nico:.asciiz "\nLos cubos de Nicomaco generados son los siguientes: "
 	Sms_sumaNico:.asciiz "\nLa suma de los cubos generados es la siguiente: "
 	Sms_Cubo:.asciiz "^3 = "
+	Sms_nl:.asciiz "\n"
 
+	#4*2^(-n)
+
+	#Opciones
 	Sms_Op1:.asciiz "\nEsta es opcion 1\n"
 	Sms_Op2:.asciiz "\nEsta es opcion 2\n"
 	Sms_Op3:.asciiz "\nEsta es opcion 3\n"
@@ -45,6 +51,7 @@ main:
 	syscall
 	move $t0,$v0
 
+	#Acceso rapido a diferentes opciones en el menu
 	beq $t0, 1, opcion1
 	beq $t0, 2, opcion2
 	beq $t0, 3, opcion3
@@ -154,46 +161,172 @@ fiboFin:
 	j main
 
 
-
-
-
 #================================================================================================================================================================
 #Opcion 2: Cubos de Nicomaco
-
-#VARIABLES A UTIlIZAR:
-#t0: contador de cubos
-#t1: direccion de memoria
-#t2: cantidad de cubos a generar
-
-
-#t3: sumar numeros
-#t4: contador interno de numeros a sumar para cada cubo
-#t5: numeros impares
-
-#proceso a seguir:
-# t2 es la cantidad a generar, si t4 es igual a t2, se imprime la suma de los cubos
-# si t4 es menor a t2, se sigue sumando los cubos
-
-#El proceso de los cubos sera el siguiente:
-#Para cada t4, digamos para t4=1 solo se sumara t5=1, despues se sumara t5=t5+2 
-#y se pasara al siguiente cubo, sumando a t4++ y t0++
-
-#PAra el sigueinte, ya tendremos que t4 sera igual a 2, y se sumara t5, y  despues t5=5, y asi sucesivamente
-
 opcion2:
+    li   $v0, 4 
+    la   $a0, Sms_NicoCantidad
+    syscall
 
-	li $t4, 1
-	li $t5, 1
+    li   $v0, 5
+    syscall
+    move $t2, $v0           # t2 = cantidad de cubos a generar
 
-    li $v0, 4
-	la $a0, Sms_NicoCantidad
+    # Inicializar:
+    li   $t0, 1            # t0 = contador global de cubos; primer cubo es n=1
+    la   $t1, Vector       # t1 = puntero al arreglo
+	li   $t3, 1            # t3 = suma de cubos
+	li   $t4, 0            # t4 = contador de numeros sumados por cada uno de los cubos
+    li   $t5, 1            # t5 = primer impar (1)
+	li   $t6, 0            # t6 = suma de los cubos generados
+
+	j Nicomaco
+
+
+#Variables
+#t0: Numero de elementos en arreglo
+#t1: Vector
+#t2: CAntidad de elementos pedido por usuario
+#t3: Sumas
+#t4: contador de numeros sumados por cada uno de los cubos
+#t5: NUmeros impares (Se suman de dos en dos)
+
+#t6: Suma de los cubos generados para imprimirlos posteriormente
+
+Nicomaco:
+	# Generar cubo de Nicomaco
+	bgt $t0, $t2, NicomacoImprimir
+	j NicoNextNumber
+
+#Setear variables para siguiente cubo
+NicoNextNumber:
+	li $t3, 0
+	li $t4, 0
+
+	#Imprimir new line
+	li $v0, 4
+	la $a0, Sms_nl
 	syscall
 
-	li $v0, 5
+	#IMprimri el cubo actual
+	li $v0, 1
+	move $a0, $t0
 	syscall
-	move $t2, $v0
+	
+	li $v0, 4
+	la $a0, Sms_Cubo
+	syscall
 
-	j nico
+	j NicoSuma
+
+
+#Sumar t3 y t5 hasta que t4 sea mayor que t0
+NicoSuma:
+	beq $t4, $t0, NicoAppend #Cuando la cantidad de cubos es igual a la pedida por usuario se vuelve a Nicomaco
+	
+
+	#Se hace la suma
+	add $t3, $t3, $t5
+
+	#Imprimir el numero a sumar
+	li $v0, 1
+	move $a0, $t5
+	syscall
+
+		
+	add $t4, $t4, 1
+	add $t5, $t5, 2
+
+	#Cuando la cantidad de cubos es igual a la pedida por usuario se vuelve a Nicomaco
+	beq $t4, $t0, NicoAppend 
+
+	#Imprimir el signo de suma
+	li $v0, 4
+	la $a0, Sms_Comma
+	syscall
+
+	j NicoSuma
+
+
+#Cuando t4 sea igual a t0, guardar el cubo en el arreglo
+#y volver a Nicomaco
+NicoAppend:
+	# IMprimir =
+	li $v0, 4
+	la $a0, Sms_I
+	syscall
+
+	#Imprimir t3 
+	li $v0, 1
+	move $a0, $t3
+	syscall
+
+	add $t6, $t6, $t3
+
+	#Guardar el cubo en el arreglo
+	sw $t3, 0($t1)
+	addi $t1, $t1, 4
+	add $t0, $t0, 1
+
+	li $t4, 0
+
+	j Nicomaco
+
+#Imprimir los cubos generados
+NicomacoImprimir:
+	#Reiniciar las variables para imprimir
+	li $t0, 0
+	la $t1, Vector
+
+	#imprimir salto de linea:
+	li $v0, 4
+	la $a0, Sms_nl
+	syscall
+
+	li $v0, 4
+	la $a0, Sms_Nico
+	syscall
+
+	j NicoFor
+
+
+NicoFor:
+	#Cuando t0 sea igual a t2, salir del ciclo
+	bge $t0, $t2, NicoFin
+
+	#Imprimir el numero
+	lw $t3, 0($t1)
+
+	#Sumar el numero al total
+	add $t4, $t4, $t3
+
+	li $v0, 1
+	move $a0, $t3
+	syscall
+
+	addi $t1, $t1, 4
+	addi $t0, $t0, 1
+
+	beq $t0, $t2, NicoFor
+
+	li $v0, 4
+	la $a0, Sms_Comma
+	syscall
+
+	j NicoFor
+	
+NicoFin:
+	li $v0, 4
+	la $a0, Sms_sumaNico
+	syscall
+
+	li $v0, 1
+	move $a0, $t6
+	syscall
+
+	j main
+
+
 
 
 #================================================================================================================================================================
@@ -203,6 +336,9 @@ opcion3:
 	syscall                   # Imprime "Esta es opcion 3"
 	j main
 
+
+
+#================================================================================================================================================================
 salir:
     li $v0, 4
     la $a0, Sms_Op4         # Usamos Sms_Op3 para "Esta es opcion 3" (o puedes agregar otro mensaje para salir)
