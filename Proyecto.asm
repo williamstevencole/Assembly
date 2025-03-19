@@ -27,32 +27,29 @@
     info_monto:   .asciiz "Monto del prestamo: "
     info_cuota:   .asciiz "Cuota: "
 
-    hashtags:   .asciiz "\n######################################################################################################################\n"
+    hashtags:   .asciiz "\n########################################################################################################################################################\n"
     headerTablaLempiras: .asciiz "\t\t\t\t\tTabla de amortizacion en Lempiras"
-    ColumnasTabla: .asciiz "\tMes\t|\tCuota\t\t|\tInteres\t\t|\tAmortizacion\t\t|\tSaldo\t"
+    ColumnasTabla: .asciiz "\tMes\t|\tCuota\t\t|\t\tInteres\t\t\t|\t\tAmortizacion\t\t|\t\tSaldo\t\t"
     
     # Para la fila 0, definimos dos cadenas:
-    row0_rest:   .asciiz "\t|\t\t\t|\t\t\t|\t\t\t\t|\t"   
+    row0_rest:   .asciiz "\t|\t\t\t|\t\t\t\t|\t\t\t\t|\t"   
     row0_prefix: .asciiz "\t"
     
-    tableDiv:    .asciiz "\n----------------------------------------------------------------------------------------------------------------------\n" 
+    tableDiv:    .asciiz "\n-------------------------------------------------------------------------------------------------------------------------------------------------------\n" 
     
     mes_suffix: .asciiz "\t|"
 
     cuota_prefix: .asciiz "\t"
     cuota_suffix: .asciiz "\t|"
     
-    interes_prefix: .asciiz "\t"
-    interes_suffix: .asciiz "\t\t|"
+    interes_prefix: .asciiz "\t\t"
+    interes_suffix: .asciiz "\t\t\t|"
     
     amortizacion_prefix:  .asciiz "\t"
-    amortizacion_suffix:  .asciiz "\t|"
+    amortizacion_suffix:  .asciiz "\t\t|"
     
     saldo_prefix:  .asciiz "\t"
-    saldo_suffix:  .asciiz "\t|"
-    
-    
-    
+    saldo_suffix:  .asciiz "\t"
     
     new_line: .asciiz "\n"
 
@@ -234,9 +231,12 @@ generarTablaLempiras:
     j calcularCuotaLempiras
 
 mes0Lempiras:
+    #Assembly
     li $v0, 4
     la $a0, hashtags
     syscall
+    
+    #print(hashtags) en python
 
     li $v0, 4
     la $a0, headerTablaLempiras
@@ -314,88 +314,118 @@ power_done:
 
     j induccionLempiras
 
-induccionLempiras:
-    # Si el contador de meses ($s0) es mayor o igual al plazo ($t6), saltar a exit_prog
-    bge $s0, $t6, exit_prog
 
-    #tabulacion para hacer que el contador este alineado con el label de mes 
+induccionLempiras:
+    # Verificar si ya se alcanzó o superó el plazo
+    bgt $s0, $t6, exit_prog
+
+    # Imprimir la fila del mes (para la columna "Mes" y el resto)
     li $v0, 4
-    la $a0, row0_prefix   
+    la $a0, row0_prefix    # Imprime la parte fija antes del contador de mes
     syscall
     
-    # Imprimir el contador de meses (columna Mes)
+    # Imprimir el contador de meses (columna "Mes")
     li $v0, 1
     move $a0, $s0
     syscall
 
-    # Imprimir el resto de la fila (campos vacíos, luego monto)
+    # Imprimir el sufijo de la columna Mes (por ejemplo, tabulador/divisor)
     li $v0, 4
     la $a0, mes_suffix
     syscall
 
-    #imprimir tabulacion previo de cuota
+    # Imprimir la columna "Cuota"
     li $v0, 4
     la $a0, cuota_prefix
     syscall
-    
-    #Imprimir cuota
+
     li $v0, 2
-    mov.s $f12, $f14
+    mov.s $f12, $f14      # Imprime la cuota (calculada en f14)
     syscall
 
-    #imprimir tabulacion y divisor de columna
     li $v0, 4
     la $a0, cuota_suffix
     syscall
 
+    # Calcular interés:
+    # Obtener el saldo actual almacenado en el arreglo (último valor guardado):
+    sub $t7, $t5, 4       # $t7 apunta al último saldo almacenado
+    l.s $f22, 0($t7)      # f22 = saldo actual
 
-    #Calcular interes
-    #Ver valor actual en el arreglo de Saldo
-    l.s $f22, 0($t5)
-    #multiplicar s2 * interes ingresado por el usuario
+    # Calcular interés = tasa * saldo
     mul.s $f16, $f2, $f22
 
-    #imprimir tabulacion previo de interes
+    # Imprimir la columna "Interes"
     li $v0, 4
     la $a0, interes_prefix
     syscall
 
-    #Imprimir interes
     li $v0, 2
     mov.s $f12, $f16
     syscall
 
-    #imprimir tabulacion y divisor de columna
     li $v0, 4
     la $a0, interes_suffix
     syscall
 
+    # Calcular amortización = cuota - interés
+    sub.s $f18, $f14, $f16
 
+    # Imprimir la columna "Amortizacion"
+    li $v0, 4
+    la $a0, amortizacion_prefix
+    syscall
 
+    li $v0, 2
+    mov.s $f12, $f18
+    syscall
 
+    li $v0, 4
+    la $a0, amortizacion_suffix
+    syscall
+
+    # Calcular saldo = saldo - amortización
+    sub.s $f22, $f22, $f18
+
+    # Imprimir la columna "Saldo"
+    li $v0, 4
+    la $a0, saldo_prefix
+    syscall
+
+    li $v0, 2
+    mov.s $f12, $f22
+    syscall
+
+    li $v0, 4
+    la $a0, saldo_suffix
+    syscall
+
+    # Guardar todos los valores en los arreglos
+    s.s $f14, 0($t3)   # Guardar la cuota en el arreglo de Amortizacion
+    addi $t3, $t3, 4   # Incrementar el puntero del arreglo de Amortizacion
+    addi $t2, $t2, 1   # Incrementar el contador de elementos en el arreglo de Amortizacion
+
+    s.s $f16, 0($t1)   # Guardar el interés en el arreglo de Interes
+    addi $t1, $t1, 4   # Incrementar el puntero del arreglo de Interes
+    addi $t0, $t0, 1   # Incrementar el contador de elementos en el arreglo de Interes
+
+    s.s $f22, 0($t5)   # Guardar el nuevo saldo en el arreglo de Saldo
+    addi $t5, $t5, 4   # Incrementar el puntero del arreglo de Saldo
+    addi $t4, $t4, 1   # Incrementar el contador de elementos en el arreglo de Saldo
+
+    # Imprimir el divisor de la tabla
+    li $v0, 4
+    la $a0, tableDiv
+    syscall
+    
+    # Imprimir salto de línea
     li $v0, 4
     la $a0, new_line
     syscall
 
-    li $v0, 10
-    syscall
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    # Incrementar contador de meses y repetir
+    addi $s0, $s0, 1
+    j induccionLempiras
 
 
 
@@ -465,6 +495,8 @@ rn_replace:
     jr $ra
 rn_exit:
     jr $ra
+
+
 
 #-------------------------------------------
 # Rutina strcmp: Compara dos strings.
