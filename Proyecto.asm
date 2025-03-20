@@ -28,11 +28,12 @@
     info_cuota:   .asciiz "Cuota: "
 
     hashtags:   .asciiz "\n########################################################################################################################################################\n"
-    headerTablaLempiras: .asciiz "\t\t\t\t\tTabla de amortizacion en Lempiras"
-    ColumnasTabla: .asciiz "\tMes\t|\tCuota\t\t|\t\tInteres\t\t\t|\t\tAmortizacion\t\t|\t\tSaldo\t\t"
+    headerTablaLempiras: .asciiz "\t\t\t\t\t\t\tTabla de amortizacion en Lempiras"
+    headerTablaDolares:  .asciiz "\t\t\t\t\t\t\tTabla de amortizacion en Dolares"
+    ColumnasTabla: .asciiz "\tMes\t|\tCuota\t\t|\t\tInteres\t\t\t\t|\t\tAmortizacion\t\t|\tSaldo\t\t"
     
     # Para la fila 0, definimos dos cadenas:
-    row0_rest:   .asciiz "\t|\t\t\t|\t\t\t\t|\t\t\t\t|\t"   
+    row0_rest:   .asciiz "\t|\t\t\t|\t\t\t\t\t\t|\t\t\t\t\t|\t"   
     row0_prefix: .asciiz "\t"
     
     tableDiv:    .asciiz "\n-------------------------------------------------------------------------------------------------------------------------------------------------------\n" 
@@ -45,13 +46,18 @@
     interes_prefix: .asciiz "\t\t"
     interes_suffix: .asciiz "\t\t\t|"
     
-    amortizacion_prefix:  .asciiz "\t"
+    amortizacion_prefix:  .asciiz "\t\t"
     amortizacion_suffix:  .asciiz "\t\t|"
     
     saldo_prefix:  .asciiz "\t"
     saldo_suffix:  .asciiz "\t"
     
     new_line: .asciiz "\n"
+
+    dollar_rate: .float 25.59 #Valor del dolar actual al 19 de marzo del 2025 a las 10:18:50 PM   
+
+    lempiras: .asciiz ".LPS"
+    dolares:  .asciiz ".USD"
 
 .text
 .globl main
@@ -317,7 +323,7 @@ power_done:
 
 induccionLempiras:
     # Verificar si ya se alcanzó o superó el plazo
-    bgt $s0, $t6, exit_prog
+    bgt $s0, $t6, generarTablaDolares
 
     # Imprimir la fila del mes (para la columna "Mes" y el resto)
     li $v0, 4
@@ -427,6 +433,168 @@ induccionLempiras:
     addi $s0, $s0, 1
     j induccionLempiras
 
+generarTablaDolares:
+    li   $t0, 0         # Reinicia contador de Interés
+    la   $t1, Interes   # Reinicia puntero de Interés
+
+    li   $t2, 0         # Reinicia contador de Amortizacion
+    la   $t3, Amortizacion # Reinicia puntero de Amortizacion
+
+    li   $t4, 0         # Reinicia contador de Saldo
+    la   $t5, Saldo     # Reinicia puntero de Saldo
+
+    li $s0, 0 
+    
+    li $v0, 4
+    la $a0, hashtags
+    syscall
+    
+    li $v0, 4
+    la $a0, headerTablaDolares 
+    syscall
+    
+    li $v0, 4
+    la $a0, hashtags
+    syscall
+    
+    li $v0, 4
+    la $a0, ColumnasTabla
+    syscall
+    
+    li $v0, 4
+    la $a0, tableDiv
+    syscall
+    
+    # Poner dollar_rate en f20 (asegúrate de haberlo definido en .data)
+    l.s $f20, dollar_rate
+    
+    # Imprimir la fila 0 
+    li $v0, 4
+    la $a0, row0_prefix
+    syscall
+    
+    li $v0, 1
+    move $a0, $s0
+    syscall
+    
+    li $v0, 4
+    la $a0, row0_rest
+    syscall
+    
+    # Convertir el monto inicial a dólares y mostrarlo:
+    div.s $f12, $f4, $f20
+    li $v0, 2
+    syscall
+    
+    li $v0, 4
+    la $a0, tableDiv
+    syscall
+    
+    addi $s0, $s0, 1    # Incrementar el contador de meses
+    addi $t5, $t5, 4    # Avanza el puntero de Saldo para la siguiente fila
+    j induccionDolares
+
+induccionDolares:
+    bgt $s0, $t6, exit_prog   # Si se han procesado todos los meses, termina
+
+    # Cargar dollar_rate en $f20
+    l.s $f20, dollar_rate
+
+    # Imprimir la fila del mes:
+    li $v0, 4
+    la $a0, row0_prefix
+    syscall
+
+    li $v0, 1
+    move $a0, $s0         # Imprime el número del mes
+    syscall
+
+    li $v0, 4
+    la $a0, mes_suffix
+    syscall
+
+    # Columna "Cuota": Cargar la cuota en lempiras desde el arreglo y convertir a dólares.
+    li $v0, 4
+    la $a0, cuota_prefix
+    syscall
+
+    l.s $f14, 0($t3)      # Cargar cuota (en lempiras) para este mes desde el arreglo
+    div.s $f15, $f14, $f20  # Convertir a dólares: f15 = cuota / dollar_rate
+    li $v0, 2
+    mov.s $f12, $f15
+    syscall
+
+    li $v0, 4
+    la $a0, cuota_suffix
+    syscall
+
+    # Columna "Interes": Cargar interés (en lempiras) desde el arreglo y convertir a dólares.
+    li $v0, 4
+    la $a0, interes_prefix
+    syscall
+
+    l.s $f16, 0($t1)      # Cargar interés en lempiras para este mes
+    div.s $f15, $f16, $f20  # Convertir a dólares: f15 = interés / dollar_rate
+    li $v0, 2
+    mov.s $f12, $f15
+    syscall
+
+    li $v0, 4
+    la $a0, interes_suffix
+    syscall
+
+    # Columna "Amortizacion": Cargar amortización (en lempiras) desde el arreglo y convertir a dólares.
+    li $v0, 4
+    la $a0, amortizacion_prefix
+    syscall
+
+    # Para calcular amortización en dólares, suponemos que se almacena en el arreglo o se puede calcular:
+    # Si amortización se calcula como cuota - interés en lempiras, entonces:
+    l.s $f14, 0($t3)      # cuota en lempiras
+    l.s $f16, 0($t1)      # interés en lempiras
+    sub.s $f18, $f14, $f16   # amortización en lempiras
+    div.s $f15, $f18, $f20   # convertir a dólares
+    li $v0, 2
+    mov.s $f12, $f15
+    syscall
+
+    li $v0, 4
+    la $a0, amortizacion_suffix
+    syscall
+
+    # Columna "Saldo": Cargar saldo (en lempiras) desde el arreglo y convertir a dólares.
+    li $v0, 4
+    la $a0, saldo_prefix
+    syscall
+
+    l.s $f22, 0($t5)      # Cargar saldo en lempiras para este mes
+    div.s $f15, $f22, $f20   # Convertir a dólares: f15 = saldo / dollar_rate
+    li $v0, 2
+    mov.s $f12, $f15
+    syscall
+
+    li $v0, 4
+    la $a0, saldo_suffix
+    syscall
+
+    # Imprimir el divisor y salto de línea
+    li $v0, 4
+    la $a0, tableDiv
+    syscall
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    # Incrementar los punteros de cada arreglo para pasar al siguiente mes
+    addi $t3, $t3, 4   # Siguiente cuota
+    addi $t1, $t1, 4   # Siguiente interés
+    addi $t5, $t5, 4   # Siguiente saldo
+
+    addi $s0, $s0, 1   # Incrementar contador de meses
+    j induccionDolares
+
+
+
 
 
 
@@ -495,8 +663,6 @@ rn_replace:
     jr $ra
 rn_exit:
     jr $ra
-
-
 
 #-------------------------------------------
 # Rutina strcmp: Compara dos strings.
