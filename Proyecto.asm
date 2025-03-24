@@ -64,14 +64,14 @@
 
 main:
     # Inicializaciones de variables reservadas para arreglos:
-	li   $t0, 0         # contador de elementos en arreglo de Interes
-	la   $t1, Interes   # base del arreglo de Intereses
+    li   $t0, 0         # contador de elementos en arreglo de Interes
+    la   $t1, Interes   # base del arreglo de Intereses
 
-	li   $t2, 0         # contador de elementos en arreglo de Amortizacion
-	la   $t3, Amortizacion   # base del arreglo de Amortizaciones
+    li   $t2, 0         # contador de elementos en arreglo de Amortizacion
+    la   $t3, Amortizacion   # base del arreglo de Amortizaciones
 
-	li   $t4, 0         # contador de elementos en arreglo de Saldo
-	la   $t5, Saldo     # base del arreglo de Saldo
+    li   $t4, 0         # contador de elementos en arreglo de Saldo
+    la   $t5, Saldo     # base del arreglo de Saldo
 
     # Imprimir mensaje de bienvenida
     li $v0, 4
@@ -242,8 +242,6 @@ mes0Lempiras:
     la $a0, hashtags
     syscall
     
-    #print(hashtags) en python
-
     li $v0, 4
     la $a0, headerTablaLempiras
     syscall
