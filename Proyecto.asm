@@ -13,7 +13,7 @@
     hundred: .float 100.0
 
     menu_header: .asciiz "\t\t\t\t\t\t\t\tMenu de Amortizacion de Prestamos\t\t\t\t\t\t"
-    Sms_Menu: .asciiz "\n\nEste es el menu: \n1. Calculo de amortización\n2. Cambiar moneda de tabla \n3. Salir\nIngrese la opcion deseada: "
+    Sms_Menu: .asciiz "\n1. Calculo de amortización\n2. Cambiar moneda de tabla \n3. Salir\nIngrese la opcion deseada: "
     Sms_0: .asciiz "Bienvenido a la amortizacion de prestamos!!!!!\n"
     Sms_1: .asciiz "\n- Introduzca el nombre del beneficiario: "
     Sms_2: .asciiz "\n- El plazo del prestamo es en Meses o Años? "
@@ -25,11 +25,16 @@
     Sms_7: .asciiz "La suma de todas las cuotas es: "
     Sms_8: .asciiz "La suma de todos los intereses es: "
     Sms_9: .asciiz "La suma de todas las amortizaciones es: "
-    Sms_10: .asciiz "El saldo final es: "
+    Sms_10: .asciiz "La suma de todos los saldos es: "
 
     Sms_11: .asciiz "\n(El interes valido para el plazo de 0 a 12 meses es de 25% (0.25) a 40% (0.40))"
     Sms_12: .asciiz "\n(El interes valido para el plazo de 12 a 24 meses es de 15% (0.15) a 30% (0.30) )"
     Sms_13: .asciiz "\n(El interes valido para el plazo de 24 a 240 meses es de 10% (0.10) a 25% (0.25) )"
+
+    Sms_Conclusion: .asciiz "Por un prestamo de: "
+    Sms_Conclusion2: .asciiz " Con unos intereses de: "
+    Sms_Conclusion3: .asciiz " El beneficiario "
+    Sms_Conclusion4: .asciiz " tiene que pagar un total de: "
     
     Sms_ErrorMenu:, .asciiz "\nError: Opcion no valida. Intente de nuevo\n"
     Sms_ErrorPlazo: .asciiz "Error: el prestamo no puede exceder de 240 meses o 20 años.\n"
@@ -156,6 +161,7 @@ menu:
     beq $s2, 3, exit_prog 
 
     j menuMismatch
+    
 
 menuMismatch:
     li $v0, 4
@@ -262,7 +268,6 @@ resetArreglos:
     j nombre_input
 
 
-# Pedir el nombre del beneficiario 
 nombre_input:
     li $v0, 4
     la $a0, hashtags
@@ -285,18 +290,26 @@ nombre_input:
     li $a1, 80           
     syscall
 
-    # Revisar si el nombre está vacío
-    lb $t7, Nombre      # Revisar el primer carácter
+    jal remove_newline
+
+    # Verificar si el nombre está vacío
+    lb $t7, Nombre        # Leer primer carácter
     beqz $t7, error_nombre
+    li   $t8, 10          # '\n'
+    beq  $t7, $t8, error_nombre
+
     j nombre_ok
+
 error_nombre:
     li $v0, 4
     la $a0, Sms_ErrorNombre
     syscall
     j nombre_input
+
 nombre_ok:
     la $a0, Nombre   
     jal upper_case
+
 
    
 # Bucle para pedir el formato del plazo
@@ -539,6 +552,10 @@ print_info:
     syscall
     li $v0, 4
     la $a0, Nombre
+    syscall
+
+    li $v0, 4
+    la $a0, new_line
     syscall
 
     li $v0, 4
@@ -897,6 +914,70 @@ imprimirSumatoriasLempiras:
     la $a0, new_line
     syscall
 
+    #Imprimir el total que termina pagando el cliente
+    #sumar los intereses + amortizaciones 
+    add.s $f24, $f26, $f28
+    li $v0, 4
+    la $a0, Sms_10
+    syscall
+    li $v0, 2
+    mov.s $f12, $f24
+    syscall
+    li $v0, 4
+    la $a0, lempiras
+    syscall
+
+    li $v0, 4
+    la $a0, new_line
+    syscall
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    #Conclusion
+    # Imprimir resumen final en lempiras
+    li $v0, 4
+    la $a0, Sms_Conclusion
+    syscall
+
+    li $v0, 2
+    mov.s $f12, $f4         # Monto del préstamo
+    syscall
+    li $v0, 4
+    la $a0, lempiras
+    syscall
+
+    li $v0, 4
+    la $a0, Sms_Conclusion2
+    syscall
+
+    li $v0, 2
+    mov.s $f12, $f26        # Intereses totales
+    syscall
+    li $v0, 4
+    la $a0, lempiras
+    syscall
+
+    li $v0, 4
+    la $a0, Sms_Conclusion3
+    syscall
+
+    li $v0, 4
+    la $a0, Nombre
+    syscall
+
+    li $v0, 4
+    la $a0, Sms_Conclusion4
+    syscall
+
+    li $v0, 2
+    mov.s $f12, $f24        # Total a pagar (cuotas)
+    syscall
+    li $v0, 4
+    la $a0, lempiras
+    syscall
+
+
     j generarTablaDolares
 
  
@@ -1154,8 +1235,56 @@ imprimirSumatoriasDolares:
     li $v0, 4
     la $a0, new_line
     syscall
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    # Imprimir conclusión final en dólares
+        # Mostrar resumen final en la moneda elegida
+    li $v0, 4
+    la $a0, Sms_Conclusion
+    syscall
+
+    div.s $f12, $f4, $f20     # Monto en moneda
+    li $v0, 2
+    syscall
+    li $v0, 4
+    move $a0, $s6             # Símbolo moneda
+    syscall
+
+    li $v0, 4
+    la $a0, Sms_Conclusion2
+    syscall
+
+    div.s $f12, $f26, $f20    # Intereses en moneda
+    li $v0, 2
+    syscall
+    li $v0, 4
+    move $a0, $s6
+    syscall
+
+    li $v0, 4
+    la $a0, Sms_Conclusion3
+    syscall
+
+    li $v0, 4
+    la $a0, Nombre
+    syscall
+
+    li $v0, 4
+    la $a0, Sms_Conclusion4
+    syscall
+
+    div.s $f12, $f24, $f20    # Total a pagar (cuotas) en moneda
+    li $v0, 2
+    syscall
+    li $v0, 4
+    move $a0, $s6
+    syscall
+
 
     j menu
+
 
 #-------------------------------------------
 # Rutina upper_case: Convierte un string a Title Case.
@@ -1193,13 +1322,6 @@ update_ptr:
     j    upper_loop
 end_upper:
     jr $ra
- 
- 
- 
- 
- 
- 
- 
  
  
  
