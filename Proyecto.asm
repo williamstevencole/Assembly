@@ -1,4 +1,5 @@
 .data
+    .align 2 
     Interes:      .space 80       # Arreglo para el interés del préstamo 
     Amortizacion: .space 80       # Arreglo para la amortización del préstamo
     Saldo:        .space 80       # Arreglo para el saldo del préstamo
@@ -6,7 +7,11 @@
     Nombre:       .space 80       # Variable para el nombre del beneficiario
     FormatoPlazo: .space 80       # Variable para el formato del plazo del préstamo    
     Plazo:        .space 80       # Variable para el plazo del préstamo
+
+    zero:.float 0.0
+    one:.float 1.0
  
+    Sms_Menu: .asciiz "\n\nEste es el menu: \n1. Calculo de amortización\n2. Cambiar moneda de tabla \n3. Salir\nIngrese la opcion deseada: "
     Sms_0: .asciiz "Bienvenido a la amortizacion de prestamos!!!!!\n"
     Sms_1: .asciiz "Introduzca el nombre del beneficiario: "
     Sms_2: .asciiz "El plazo del prestamo es en Meses o Años? "
@@ -15,11 +20,19 @@
     Sms_5: .asciiz "Ingrese el saldo del prestamo: "
     Sms_6: .asciiz "La tasa de interes es Mensual o Anual? "
     
+    Sms_7: .asciiz "La suma de todas las cuotas es: "
+    Sms_8: .asciiz "La suma de todos los intereses es: "
+    Sms_9: .asciiz "La suma de todas las amortizaciones es: "
+    Sms_10: .asciiz "El saldo final es: "
+    
+    Sms_ErrorMenu:, .asciiz "\nError: Opcion no valida. Intente de nuevo\n"
     Sms_ErrorPlazo: .asciiz "Error: el prestamo no puede exceder de 240 meses o 20 años.\n"
     Sms_ErrorInteres: .asciiz "Error: el interes no puede ser negativo.\n"
     Sms_ErrorMonto: .asciiz "Error: el monto del prestamo no puede ser negativo.\n"
     Sms_ErrorFormato: .asciiz "Error: el formato del plazo no es correcto.\n"
     Sms_ErrorNombre: .asciiz "Error: el nombre no puede estar vacío.\n"
+
+    Sms_Monedas: .asciiz "\n#########################################\n         Opcion de monedas!\n#########################################\nSeleccione la moneda para la tabla 2 de amortización:\n1. Dolares\n2. Euros\n3. Libras Esterlinas\n4. Francos Suizos\n5. Dolares Australianos\nIngrese la opción deseada: "
 
     Porcentaje: .asciiz "%"
     Espacio: .asciiz " "
@@ -63,10 +76,19 @@
  
     new_line: .asciiz "\n"
  
-    dollar_rate: .float 25.59 #Valor del dolar actual al 19 de marzo del 2025 a las 10:18:50 PM   
- 
+    dollar_rate: .float 25.59   # 1 Dólar = 25.59 LPS
+    euro_rate:   .float 29.50   # 1 Euro = 29.50 LPS
+    libra_rate:  .float 33.00   # 1 Libra Esterlina = 33.00 LPS
+    franco_rate: .float 28.50   # 1 Franco Suizo = 28.50 LPS
+    aud_rate:    .float 21.00   # 1 Dólar Australiano = 21.00 LPS
+
     lempiras: .asciiz ".LPS"
-    dolares:  .asciiz ".USD"
+    dolares:  .asciiz "$"
+    euro:   .asciiz "€"
+    libra:  .asciiz "£"
+    franco: .asciiz "CHF"
+    aud:    .asciiz "A$"
+
  
 .text
 .globl main
@@ -86,6 +108,121 @@ main:
     li $v0, 4
     la $a0, Sms_0
     syscall
+
+    j menu
+
+menu:
+    li $v0, 4
+    la $a0, Sms_Menu
+    syscall
+
+    li $v0, 5
+    syscall
+    move $s2, $v0
+
+    beq $s2, 1, resetArreglos
+    beq $s2, 2, opcion2menu # por mientras
+    beq $s2, 3, exit_prog 
+
+    j menuMismatch
+
+menuMismatch:
+    li $v0, 4
+    la $a0, Sms_ErrorMenu
+    syscall
+
+    j menu
+
+opcion2menu:
+    #imprimir diferntes monedas"
+    li $v0, 4
+    la $a0, Sms_Monedas
+    syscall
+
+    li $v0, 5
+    syscall
+    move $t0, $v0
+
+    li $t1, 1
+    beq $t0, $t1, opcion_dolares
+    li $t1, 2
+    beq $t0, $t1, opcion_euros
+    li $t1, 3
+    beq $t0, $t1, opcion_libras
+    li $t1, 4
+    beq $t0, $t1, opcion_francos
+    li $t1, 5
+    beq $t0, $t1, opcion_aud
+
+    j opcion2menuMismatch          # Si la opción no es válida, reimprimir menú
+
+opcion_dolares:
+    l.s   $f20, dollar_rate   # Factor para Dólar
+    mfc1  $s5, $f20            
+    la    $s6, dolares        # Símbolo "$"
+    
+    j menu
+
+opcion_euros:
+    l.s   $f20, euro_rate      # Factor para Euro
+    mfc1  $s5, $f20
+    la    $s6, euro            # Símbolo "€"
+
+    j menu
+
+opcion_libras:
+    l.s   $f20, libra_rate     # Factor para Libra Esterlina
+    mfc1  $s5, $f20
+    la    $s6, libra           # Símbolo "£"
+
+    j menu
+
+opcion_francos:
+    l.s   $f20, franco_rate    # Factor para Franco Suizo
+    mfc1  $s5, $f20
+    la    $s6, franco          # Símbolo "CHF"
+
+    j menu
+
+opcion_aud:
+    l.s   $f20, aud_rate       # Factor para Dólar Australiano
+    mfc1  $s5, $f20
+    la    $s6, aud             # Símbolo "A$"
+
+    j menu
+
+opcion2menuMismatch:
+    li $v0, 4
+    la $a0, Sms_ErrorMenu
+    syscall
+
+    j opcion2menu
+
+
+resetArreglos:
+    # Reiniciar los arreglos
+    li   $t0, 0         # contador de elementos en arreglo de Interes
+    la   $t1, Interes   # base del arreglo de Intereses
+
+    li   $t2, 0         # contador de elementos en arreglo de Amortizacion
+    la   $t3, Amortizacion   # base del arreglo de Amortizaciones
+
+    li   $t4, 0         # contador de elementos en arreglo de Saldo
+    la   $t5, Saldo     # base del arreglo de Saldo
+
+    # Reiniciar variables
+    li $s3, 0           # Flag para indicar el formato del plazo (0 = Meses, 1 = Años)
+    li $s4, 0           # Variable para almacenar el plazo original (en meses o años)
+    li $s0, 0           # Contador de meses (inicializado a 0)
+    li $s1, 0           # Variable para almacenar la cuota
+
+    l.s $f24, zero        # Reiniciar sumatoria de cuotas
+    l.s $f26, zero        # Reiniciar sumatoria de intereses
+    l.s $f28, zero       # Reiniciar sumatoria de amortizaciones
+    l.s $f30, zero       # Reiniciar sumatoria de saldos
+    
+    j nombre_input
+
 
 # Pedir el nombre del beneficiario 
 nombre_input:
@@ -380,6 +517,9 @@ mes0Lempiras:
     li $v0, 2
     mov.s $f12, $f4      
     syscall
+
+    #sumar a f30 (sumatoria de saldos)
+    add.s $f30, $f30, $f4
  
     #Imprimir moneda
     li $v0, 4
@@ -393,8 +533,8 @@ mes0Lempiras:
  
     addi $s0, $s0, 1    # Incrementar el contador de meses para salir del ciclo
     j calcularCuotaLempiras
- 
-calcularCuotaLempiras: 
+
+calcularCuotaLempiras:
     # Calcular la cuota usando la fórmula:
     #      [(i * (1+i)^n)]
     # C = M * ---------------  
@@ -403,34 +543,34 @@ calcularCuotaLempiras:
     # M = monto (en $f4)
     # i = tasa (en $f2)
     # n = número de meses (almacenado en $t6 como entero)
- 
-    li   $at, 0x3F800000    # 1.0 en IEEE 754
-    mtc1 $at, $f0           # $f0 = 1.0
-    mtc1 $at, $f8           # $f8 = 1.0  (acumulador para (1+i)^n)
- 
-    add.s $f10, $f0, $f2    # $f10 = 1.0 + i
- 
-    move $t7, $t6           # $t7 = n
+
+    l.s $f0, one         # $f0 = 1.0 (cargado de datos)
+    l.s $f8, one         # $f8 = 1.0, se usará como acumulador para (1+i)^n
+
+    add.s $f10, $f0, $f2  # $f10 = 1.0 + i
+
+    move $t7, $t6        # $t7 = n
+
 power_loop:
-    blez $t7, power_done   # Si n<=0, salir del ciclo
+    blez $t7, power_done   # Si n <= 0, salir del bucle
     mul.s $f8, $f8, $f10    # $f8 = $f8 * (1+i)
     addi $t7, $t7, -1       # Decrementar contador
     j power_loop
+
 power_done:
     # Ahora $f8 contiene (1+i)^n
     mul.s $f10, $f2, $f8    # Numerador: i * (1+i)^n --> $f10
     sub.s $f12, $f8, $f0    # Denominador: (1+i)^n - 1 --> $f12
     div.s $f10, $f10, $f12  # Fracción = [i*(1+i)^n] / [(1+i)^n - 1]
     mul.s $f14, $f4, $f10   # Cuota = M * Fracción, resultado en $f14
- 
+
     mfc1 $s1, $f14         # Almacenar la cuota en $s1
- 
+
     j induccionLempiras
- 
- 
+
 induccionLempiras:
     # Verificar si ya se alcanzó o superó el plazo
-    bgt $s0, $t6, generarTablaDolares
+    bgt $s0, $t6, imprimirSumatoriasLempiras
  
     # Imprimir la fila del mes (para la columna "Mes" y el resto)
     li $v0, 4
@@ -455,6 +595,9 @@ induccionLempiras:
     li $v0, 2
     mov.s $f12, $f14      # Imprime la cuota (calculada en f14)
     syscall
+
+    #sumar a f24 (sumatoria de cuotas)
+    add.s $f24, $f24, $f14
 
     #Imprimir moneda
     li $v0, 4
@@ -482,7 +625,10 @@ induccionLempiras:
     mov.s $f12, $f16
     syscall
 
-     #Imprimir moneda
+    #sumar a f26 (sumatoria de intereses)
+    add.s $f26, $f26, $f16
+
+    #Imprimir moneda
     li $v0, 4
     la $a0, lempiras
     syscall
@@ -502,6 +648,9 @@ induccionLempiras:
     li $v0, 2
     mov.s $f12, $f18
     syscall
+
+    #sumar a f28 (sumatoria de amortizaciones)
+    add.s $f28, $f28, $f18
 
     #Imprimir moneda
     li $v0, 4
@@ -523,6 +672,9 @@ induccionLempiras:
     li $v0, 2
     mov.s $f12, $f22
     syscall
+
+    #sumar a f30 (sumatoria de saldos)
+    add.s $f30, $f30, $f22
 
     #Imprimir moneda
     li $v0, 4
@@ -559,199 +711,324 @@ induccionLempiras:
     # Incrementar contador de meses y repetir
     addi $s0, $s0, 1
     j induccionLempiras
+
+imprimirSumatoriasLempiras:
+    # Imprimir sumatorias
+    li $v0, 4
+    la $a0, Sms_7
+    syscall
+    li $v0, 2
+    mov.s $f12, $f24
+    syscall
+    li $v0, 4
+    la $a0, lempiras
+    syscall
+
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    li $v0, 4
+    la $a0, Sms_8
+    syscall
+    li $v0, 2
+    mov.s $f12, $f26
+    syscall
+    li $v0, 4
+    la $a0, lempiras
+    syscall
+
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    li $v0, 4
+    la $a0, Sms_9
+    syscall
+    li $v0, 2
+    mov.s $f12, $f28
+    syscall
+    li $v0, 4
+    la $a0, lempiras
+    syscall
+
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    # Resetear las sumatorias
+    l.s $f24, zero
+    l.s $f26, zero
+    l.s $f28, zero
+    l.s $f30, zero
+
+    j generarTablaDolares
+
  
 generarTablaDolares:
     li   $t0, 0         # Reinicia contador de Interés
     la   $t1, Interes   # Reinicia puntero de Interés
- 
+
     li   $t2, 0         # Reinicia contador de Amortizacion
-    la   $t3, Amortizacion # Reinicia puntero de Amortizacion
- 
+    la   $t3, Amortizacion   # Reinicia puntero de Amortizacion
+
     li   $t4, 0         # Reinicia contador de Saldo
     la   $t5, Saldo     # Reinicia puntero de Saldo
- 
+
     li $s0, 0 
- 
+
     li $v0, 4
     la $a0, hashtags
     syscall
- 
+
     li $v0, 4
     la $a0, headerTablaDolares 
     syscall
- 
+
     li $v0, 4
     la $a0, hashtags
     syscall
- 
+
     li $v0, 4
     la $a0, ColumnasTabla
     syscall
- 
+
     li $v0, 4
     la $a0, tableDiv
     syscall
- 
-    # Poner dollar_rate en f20 (asegúrate de haberlo definido en .data)
-    l.s $f20, dollar_rate
- 
+
+    # En lugar de cargar dollar_rate, cargamos el factor almacenado en $s5:
+    mtc1 $s5, $f20
+
     # Imprimir la fila 0 
     li $v0, 4
     la $a0, row0_prefix
     syscall
- 
+
+    # Imprimir el contador de meses (columna "Mes")
     li $v0, 1
     move $a0, $s0
     syscall
- 
+
     li $v0, 4
     la $a0, row0_rest
     syscall
- 
-    # Convertir el monto inicial a dólares y mostrarlo:
+
+    # Convertir el monto inicial a la moneda seleccionada y mostrarlo:
     div.s $f12, $f4, $f20
     li $v0, 2
     syscall
 
+    # Sumar el saldo a la sumatoria de saldos
+    add.s $f30, $f30, $f4
+
+    # Imprimir el símbolo de la moneda seleccionada
     li $v0, 4
-    la $a0, dolares
+    move $a0, $s6
     syscall
- 
+
     li $v0, 4
     la $a0, tableDiv
     syscall
- 
+
     addi $s0, $s0, 1    # Incrementar el contador de meses
     addi $t5, $t5, 4    # Avanza el puntero de Saldo para la siguiente fila
     j induccionDolares
- 
+
 induccionDolares:
-    bgt $s0, $t6, exit_prog   # Si se han procesado todos los meses, termina
- 
-    # Cargar dollar_rate en $f20
-    l.s $f20, dollar_rate
- 
+    bgt $s0, $t6, imprimirSumatoriasDolares   # Si se han procesado todos los meses, termina
+
+    # Cargar el factor almacenado en $s5 en $f20:
+    mtc1 $s5, $f20
+
     # Imprimir la fila del mes:
     li $v0, 4
     la $a0, row0_prefix
     syscall
- 
+
     li $v0, 1
     move $a0, $s0         # Imprime el número del mes
     syscall
- 
+
     li $v0, 4
     la $a0, mes_suffix
     syscall
- 
-    # Columna "Cuota": Cargar la cuota en lempiras desde el arreglo y convertir a dólares.
+
+    # Columna "Cuota": convertir la cuota almacenada en el arreglo a la moneda seleccionada.
     li $v0, 4
     la $a0, cuota_prefix
     syscall
- 
-    l.s $f14, 0($t3)      # Cargar cuota (en lempiras) para este mes desde el arreglo
-    div.s $f15, $f14, $f20  # Convertir a dólares: f15 = cuota / dollar_rate
-    # Imprimir cuota en dólares
+
+    l.s $f14, 0($t3)      # Cargar cuota (en LPS) para este mes
+    div.s $f15, $f14, $f20  # Convertir: cuota en moneda = cuota / factor
     li $v0, 2
     mov.s $f12, $f15
     syscall
-    #Imprimir moneda (en dólares)
+
+    # Sumar la cuota a la sumatoria de cuotas
+    add.s $f24, $f24, $f14
+
     li $v0, 4
-    la $a0, dolares
+    move $a0, $s6
     syscall
- 
+
     li $v0, 4
     la $a0, cuota_suffix
     syscall
- 
-    # Columna "Interes": Cargar interés (en lempiras) desde el arreglo y convertir a dólares.
+
+    # Columna "Interes": convertir el interés del mes.
     li $v0, 4
     la $a0, interes_prefix
     syscall
- 
-    l.s $f16, 0($t1)      # Cargar interés en lempiras para este mes
-    div.s $f15, $f16, $f20  # Convertir a dólares: f15 = interés / dollar_rate
-    # Imprimir interés en dólares
+
+    l.s $f16, 0($t1)      # Cargar interés (en LPS) para este mes
+    div.s $f15, $f16, $f20  # Convertir a moneda: interés / factor
     li $v0, 2
     mov.s $f12, $f15
     syscall
-    #Imprimir moneda (en dólares)
     li $v0, 4
-    la $a0, dolares
+    move $a0, $s6         # Imprimir el símbolo almacenado en $s6
+    
     syscall
- 
+    # Sumar el interés a la sumatoria de intereses
+    add.s $f26, $f26, $f16
+
     li $v0, 4
     la $a0, interes_suffix
     syscall
- 
-    # Columna "Amortizacion": Cargar amortización (en lempiras) desde el arreglo y convertir a dólares.
+
+    # Columna "Amortizacion": calcular y convertir la amortización.
     li $v0, 4
     la $a0, amortizacion_prefix
     syscall
- 
-    # Para calcular amortización en dólares, suponemos que se almacena en el arreglo o se puede calcular:
-    # Si amortización se calcula como cuota - interés en lempiras, entonces:
-    l.s $f14, 0($t3)      # cuota en lempiras
-    l.s $f16, 0($t1)      # interés en lempiras
-    sub.s $f18, $f14, $f16   # amortización en lempiras
-    div.s $f15, $f18, $f20   # convertir a dólares
-    # Imprimir amortización en dólares
+
+    l.s $f14, 0($t3)      # Cuota en LPS
+    l.s $f16, 0($t1)      # Interés en LPS
+    sub.s $f18, $f14, $f16   # Amortización en LPS
+    div.s $f15, $f18, $f20   # Convertir a moneda: amortización / factor
     li $v0, 2
     mov.s $f12, $f15
     syscall
-    #Imprimir moneda (en dólares)
     li $v0, 4
-    la $a0, dolares
+    move $a0, $s6         # Imprimir símbolo de moneda
     syscall
- 
+    # Sumar la amortización a la sumatoria de amortizaciones
+    add.s $f28, $f28, $f18
+    
+
     li $v0, 4
     la $a0, amortizacion_suffix
     syscall
- 
-    # Columna "Saldo": Cargar saldo (en lempiras) desde el arreglo y convertir a dólares.
+
+    # Columna "Saldo": convertir el saldo actual.
     li $v0, 4
     la $a0, saldo_prefix
     syscall
- 
-    l.s $f22, 0($t5)      # Cargar saldo en lempiras para este mes
-    div.s $f15, $f22, $f20   # Convertir a dólares: f15 = saldo / dollar_rate
-    # Imprimir saldo en dólares
+
+    l.s $f22, 0($t5)      # Saldo en LPS para este mes
+    div.s $f15, $f22, $f20   # Convertir a moneda: saldo / factor
     li $v0, 2
     mov.s $f12, $f15
     syscall
-    #Imprimir moneda (en dólares)
     li $v0, 4
-    la $a0, dolares
+    move $a0, $s6         # Imprimir símbolo de moneda
     syscall
-    
- 
+    # Sumar el saldo a la sumatoria de saldos
+    add.s $f30, $f30, $f22
+
+
     li $v0, 4
     la $a0, saldo_suffix
     syscall
- 
-    # Imprimir el divisor y salto de línea
+
+    # Guardar los valores en los arreglos:
+    s.s $f14, 0($t3)      # Guardar la cuota en el arreglo de Amortizacion
+    addi $t3, $t3, 4      # Incrementar puntero de Amortizacion
+    addi $t2, $t2, 1      # Incrementar contador de Amortizacion
+
+    s.s $f16, 0($t1)      # Guardar el interés en el arreglo de Interés
+    addi $t1, $t1, 4
+    addi $t0, $t0, 1      # Incrementar contador de Interés
+
+    s.s $f22, 0($t5)      # Guardar el nuevo saldo en el arreglo de Saldo
+    addi $t5, $t5, 4
+    addi $t4, $t4, 1      # Incrementar contador de Saldo
+
+    # Imprimir divisor y salto de línea:
     li $v0, 4
     la $a0, tableDiv
     syscall
     li $v0, 4
     la $a0, new_line
     syscall
- 
-    # Incrementar los punteros de cada arreglo para pasar al siguiente mes
-    addi $t3, $t3, 4   # Siguiente cuota
-    addi $t1, $t1, 4   # Siguiente interés
-    addi $t5, $t5, 4   # Siguiente saldo
- 
-    addi $s0, $s0, 1   # Incrementar contador de meses
+
+    # Incrementar contador de meses y repetir:
+    addi $s0, $s0, 1
     j induccionDolares
- 
- 
- 
- 
- 
- 
- 
- 
+
+imprimirSumatoriasDolares:
+    # Imprimir sumatoria de cuotas
+    li $v0, 4
+    la $a0, Sms_7
+    syscall
+    li $v0, 2
+    mov.s $f12, $f24
+    syscall
+    li $v0, 4
+    move $a0, $s6         # Imprimir símbolo de moneda
+    syscall
+
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    # Imprimir sumatoria de intereses
+    li $v0, 4
+    la $a0, Sms_8
+    syscall
+    li $v0, 2
+    mov.s $f12, $f26
+    syscall
+    li $v0, 4
+    move $a0, $s6         # Imprimir símbolo de moneda
+    syscall
+
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    # Imprimir la sumatoria de amortizaciones
+    li $v0, 4
+    la $a0, Sms_9
+    syscall
+    li $v0, 2
+    mov.s $f12, $f28
+    syscall
+    li $v0, 4
+    move $a0, $s6         # Imprimir símbolo de moneda
+    syscall
+
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    # Imprimir la sumatoria de saldos
+    li $v0, 4
+    la $a0, Sms_10
+    syscall
+    li $v0, 2
+    mov.s $f12, $f30
+    syscall
+    li $v0, 4
+    move $a0, $s6         # Imprimir símbolo de moneda
+    syscall
+    
+    li $v0, 4
+    la $a0, new_line
+    syscall
+
+    j menu
+
 #-------------------------------------------
 # Rutina upper_case: Convierte un string a Title Case.
 upper_case:
