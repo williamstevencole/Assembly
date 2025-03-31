@@ -32,7 +32,7 @@
     Sms_ErrorFormato: .asciiz "Error: el formato del plazo no es correcto.\n"
     Sms_ErrorNombre: .asciiz "Error: el nombre no puede estar vacío.\n"
 
-    Sms_Monedas: .asciiz "\n#########################################\n         Opcion de monedas!\n#########################################\nSeleccione la moneda para la tabla 2 de amortización:\n1. Dolares\n2. Euros\n3. Libras Esterlinas\n4. Francos Suizos\n5. Dolares Australianos\nIngrese la opción deseada: "
+    Sms_Monedas: .asciiz "\n#########################################\n         Opcion de monedas!\n#########################################\nSeleccione la moneda para la tabla 2 de amortización:\n1. Dolares\n2. Euros\n3. Libras Esterlinas\n4. Francos Suizos\n5. Dolares Australianos\n6. Volver al menu principal\nIngrese la opción deseada: "
 
     Porcentaje: .asciiz "%"
     Espacio: .asciiz " "
@@ -51,7 +51,7 @@
  
     hashtags:   .asciiz "\n########################################################################################################################################################\n"
     headerTablaLempiras: .asciiz "\t\t\t\t\t\t\tTabla de amortizacion en Lempiras"
-    headerTablaDolares:  .asciiz "\t\t\t\t\t\t\tTabla de amortizacion en Dolares"
+    headerTablaDolares:  .asciiz "\t\t\t\t\t\t\tTabla de amortizacion en "
     ColumnasTabla: .asciiz "\tMes\t|\tCuota\t\t|\t\tInteres\t\t\t\t|\t\tAmortizacion\t\t|\tSaldo\t\t"
  
     # Para la fila 0, definimos dos cadenas:
@@ -76,11 +76,11 @@
  
     new_line: .asciiz "\n"
  
-    dollar_rate: .float 25.59   # 1 Dólar = 25.59 LPS
-    euro_rate:   .float 29.50   # 1 Euro = 29.50 LPS
-    libra_rate:  .float 33.00   # 1 Libra Esterlina = 33.00 LPS
-    franco_rate: .float 28.50   # 1 Franco Suizo = 28.50 LPS
-    aud_rate:    .float 21.00   # 1 Dólar Australiano = 21.00 LPS
+    dollar_rate: .float 25.5775   # 1 Dólar = 25.58 LPS 30-03-2025
+    euro_rate:   .float 27.7209   # 1 Euro = 27.73 LPS 30-03-2025
+    libra_rate:  .float 33.1599   # 1 Libra Esterlina = 33.17 LPS 30-03-2025
+    franco_rate: .float 29.1001   # 1 Franco Suizo = 29.11 LPS 30-03-2025
+    aud_rate:    .float 16.0921   # 1 Dólar Australiano = 16.0921 LPS 30-03-2025
 
     lempiras: .asciiz ".LPS"
     dolares:  .asciiz "$"
@@ -88,6 +88,13 @@
     libra:  .asciiz "£"
     franco: .asciiz "CHF"
     aud:    .asciiz "A$"
+
+    dolaresString: .asciiz "Dolares"
+    eurosString:   .asciiz "Euros"
+    librasString:  .asciiz "Libras Esterlinas"
+    francosString: .asciiz "Franco Suizo"
+    audString:     .asciiz "Dolares Australianos"
+
 
  
 .text
@@ -108,6 +115,11 @@ main:
     li $v0, 4
     la $a0, Sms_0
     syscall
+
+    # Establecer moneda por defecto: Dólares
+    l.s   $f20, dollar_rate   
+    mfc1  $s5, $f20           # Guarda factor de dolares en $s5
+    la    $s6, dolares        # Guarda $ en $s6
 
     j menu
 
@@ -153,6 +165,8 @@ opcion2menu:
     beq $t0, $t1, opcion_francos
     li $t1, 5
     beq $t0, $t1, opcion_aud
+    li $t1, 6
+    beq $t0, $t1, menu 
 
     j opcion2menuMismatch          # Si la opción no es válida, reimprimir menú
 
@@ -756,12 +770,6 @@ imprimirSumatoriasLempiras:
     la $a0, new_line
     syscall
 
-    # Resetear las sumatorias
-    l.s $f24, zero
-    l.s $f26, zero
-    l.s $f28, zero
-    l.s $f30, zero
-
     j generarTablaDolares
 
  
@@ -819,9 +827,6 @@ generarTablaDolares:
     li $v0, 2
     syscall
 
-    # Sumar el saldo a la sumatoria de saldos
-    add.s $f30, $f30, $f4
-
     # Imprimir el símbolo de la moneda seleccionada
     li $v0, 4
     move $a0, $s6
@@ -865,9 +870,6 @@ induccionDolares:
     mov.s $f12, $f15
     syscall
 
-    # Sumar la cuota a la sumatoria de cuotas
-    add.s $f24, $f24, $f14
-
     li $v0, 4
     move $a0, $s6
     syscall
@@ -887,11 +889,9 @@ induccionDolares:
     mov.s $f12, $f15
     syscall
     li $v0, 4
-    move $a0, $s6         # Imprimir el símbolo almacenado en $s6
-    
+    move $a0, $s6         # Imprimir el símbolo almacenado en $s6   
     syscall
-    # Sumar el interés a la sumatoria de intereses
-    add.s $f26, $f26, $f16
+ 
 
     li $v0, 4
     la $a0, interes_suffix
@@ -912,9 +912,6 @@ induccionDolares:
     li $v0, 4
     move $a0, $s6         # Imprimir símbolo de moneda
     syscall
-    # Sumar la amortización a la sumatoria de amortizaciones
-    add.s $f28, $f28, $f18
-    
 
     li $v0, 4
     la $a0, amortizacion_suffix
@@ -933,9 +930,6 @@ induccionDolares:
     li $v0, 4
     move $a0, $s6         # Imprimir símbolo de moneda
     syscall
-    # Sumar el saldo a la sumatoria de saldos
-    add.s $f30, $f30, $f22
-
 
     li $v0, 4
     la $a0, saldo_suffix
@@ -967,12 +961,15 @@ induccionDolares:
     j induccionDolares
 
 imprimirSumatoriasDolares:
+    # Cargar el factor almacenado en $s5:
+    mtc1 $s5, $f20
+
     # Imprimir sumatoria de cuotas
     li $v0, 4
     la $a0, Sms_7
     syscall
+    div.s $f12, $f24, $f20   # Convertir a moneda: sumatoria de cuotas / factor
     li $v0, 2
-    mov.s $f12, $f24
     syscall
     li $v0, 4
     move $a0, $s6         # Imprimir símbolo de moneda
@@ -986,8 +983,8 @@ imprimirSumatoriasDolares:
     li $v0, 4
     la $a0, Sms_8
     syscall
+    div.s $f12, $f26, $f20   # Convertir a moneda: sumatoria de intereses / factor
     li $v0, 2
-    mov.s $f12, $f26
     syscall
     li $v0, 4
     move $a0, $s6         # Imprimir símbolo de moneda
@@ -1001,8 +998,8 @@ imprimirSumatoriasDolares:
     li $v0, 4
     la $a0, Sms_9
     syscall
+    div.s $f12, $f28, $f20   # Convertir a moneda: sumatoria de amortizaciones / factor
     li $v0, 2
-    mov.s $f12, $f28
     syscall
     li $v0, 4
     move $a0, $s6         # Imprimir símbolo de moneda
@@ -1016,8 +1013,8 @@ imprimirSumatoriasDolares:
     li $v0, 4
     la $a0, Sms_10
     syscall
+    div.s $f12, $f30, $f20   # Convertir a moneda: sumatoria de saldos / factor
     li $v0, 2
-    mov.s $f12, $f30
     syscall
     li $v0, 4
     move $a0, $s6         # Imprimir símbolo de moneda
