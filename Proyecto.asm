@@ -12,24 +12,29 @@
     one:.float 1.0
     hundred: .float 100.0
 
- 
+    menu_header: .asciiz "\t\t\t\t\t\t\t\tMenu de Amortizacion de Prestamos\t\t\t\t\t\t"
     Sms_Menu: .asciiz "\n\nEste es el menu: \n1. Calculo de amortización\n2. Cambiar moneda de tabla \n3. Salir\nIngrese la opcion deseada: "
     Sms_0: .asciiz "Bienvenido a la amortizacion de prestamos!!!!!\n"
-    Sms_1: .asciiz "Introduzca el nombre del beneficiario: "
-    Sms_2: .asciiz "El plazo del prestamo es en Meses o Años? "
-    Sms_3: .asciiz "Ingrese el plazo del prestamo: "
-    Sms_4: .asciiz "Ingrese el interes del prestamo en decimal: "
-    Sms_5: .asciiz "Ingrese el saldo del prestamo: "
-    Sms_6: .asciiz "La tasa de interes es Mensual o Anual? "
+    Sms_1: .asciiz "\n- Introduzca el nombre del beneficiario: "
+    Sms_2: .asciiz "\n- El plazo del prestamo es en Meses o Años? "
+    Sms_3: .asciiz "\n- Ingrese el plazo del prestamo: "
+    Sms_4: .asciiz "\n- Ingrese el interes del prestamo en decimal: "
+    Sms_5: .asciiz "\n- Ingrese el saldo del prestamo: "
+    Sms_6: .asciiz "\n- La tasa de interes es Mensual o Anual? "
     
     Sms_7: .asciiz "La suma de todas las cuotas es: "
     Sms_8: .asciiz "La suma de todos los intereses es: "
     Sms_9: .asciiz "La suma de todas las amortizaciones es: "
     Sms_10: .asciiz "El saldo final es: "
+
+    Sms_11: .asciiz "\n(El interes valido para el plazo de 0 a 12 meses es de 25% (0.25) a 40% (0.40))"
+    Sms_12: .asciiz "\n(El interes valido para el plazo de 12 a 24 meses es de 15% (0.15) a 30% (0.30) )"
+    Sms_13: .asciiz "\n(El interes valido para el plazo de 24 a 240 meses es de 10% (0.10) a 25% (0.25) )"
     
     Sms_ErrorMenu:, .asciiz "\nError: Opcion no valida. Intente de nuevo\n"
     Sms_ErrorPlazo: .asciiz "Error: el prestamo no puede exceder de 240 meses o 20 años.\n"
-    Sms_ErrorInteres: .asciiz "Error: el interes no puede ser negativo.\n"
+    Sms_ErrorInteresNegativo: .asciiz "Error: el interes no puede ser negativo.\n"
+    Sms_ErrorInteres: .asciiz "\nError: el interes no es valido para el plazo ingresado. Intente de nuevo\n"
     Sms_ErrorMonto: .asciiz "Error: el monto del prestamo no puede ser negativo.\n"
     Sms_ErrorFormato: .asciiz "Error: el formato del plazo no es correcto.\n"
     Sms_ErrorNombre: .asciiz "Error: el nombre no puede estar vacío.\n"
@@ -44,7 +49,8 @@
     SalirStr: .asciiz "Salir"
  
     # Cadenas para imprimir la información recopilada
-    info_header:  .asciiz "\nInformación recopilada:\n"
+    input_header: .asciiz "\t\t\t\t\t\t\tRecopilación de información del prestamo\t\t\t\t\t\t"
+    info_header:  .asciiz "\t\t\t\t\t\t\tInformación recopilada\t\t\t\t\t\t\t"
     info_name:    .asciiz "Nombre: "
     info_plazo:   .asciiz "Plazo: "
     info_interes: .asciiz "Interes: "
@@ -97,8 +103,6 @@
     francosString: .asciiz "Franco Suizo"
     audString:     .asciiz "Dolares Australianos"
 
-
- 
 .text
 .globl main
  
@@ -127,6 +131,18 @@ main:
     j menu
 
 menu:
+    li $v0, 4
+    la $a0, hashtags
+    syscall
+
+    li $v0, 4
+    la $a0, menu_header
+    syscall
+
+    li $v0, 4
+    la $a0, hashtags
+    syscall
+
     li $v0, 4
     la $a0, Sms_Menu
     syscall
@@ -249,6 +265,18 @@ resetArreglos:
 # Pedir el nombre del beneficiario 
 nombre_input:
     li $v0, 4
+    la $a0, hashtags
+    syscall
+
+    li $v0, 4
+    la $a0, input_header
+    syscall
+
+    li $v0, 4
+    la $a0, hashtags
+    syscall
+
+    li $v0, 4
     la $a0, Sms_1
     syscall
 
@@ -257,6 +285,7 @@ nombre_input:
     li $a1, 80           
     syscall
 
+    # Revisar si el nombre está vacío
     lb $t7, Nombre      # Revisar el primer carácter
     beqz $t7, error_nombre
     j nombre_ok
@@ -352,7 +381,71 @@ error_plazo_anios:
     j plazoAnios
 
 # Bucle para pedir el interés del préstamo
+# Bucle para pedir el interés del préstamo
 loop_interes:
+    # Determinar el rango de interés según el plazo en meses
+    li $t9, 12
+    blt $t6, $t9, interes_rango_corto
+    li $t9, 25
+    blt $t6, $t9, interes_rango_medio
+    j interes_rango_largo
+
+interes_rango_corto:
+    li $v0, 4
+    la $a0, Sms_11
+    syscall
+
+    li $t8, 25
+    mtc1 $t8, $f10
+    cvt.s.w $f10, $f10
+    l.s $f1, hundred
+    div.s $f10, $f10, $f1   # f10 = 0.25
+
+    li $t8, 40
+    mtc1 $t8, $f12
+    cvt.s.w $f12, $f12
+    div.s $f12, $f12, $f1   # f12 = 0.40
+
+    j pedir_interes
+
+interes_rango_medio:
+    li $v0, 4
+    la $a0, Sms_12
+    syscall
+
+    li $t8, 15
+    mtc1 $t8, $f10
+    cvt.s.w $f10, $f10
+    l.s $f1, hundred
+    div.s $f10, $f10, $f1   # f10 = 0.15
+
+    li $t8, 30
+    mtc1 $t8, $f12
+    cvt.s.w $f12, $f12
+    div.s $f12, $f12, $f1   # f12 = 0.30
+
+    j pedir_interes
+
+interes_rango_largo:
+    li $v0, 4
+    la $a0, Sms_13
+    syscall
+
+    li $t8, 10
+    mtc1 $t8, $f10
+    cvt.s.w $f10, $f10
+    l.s $f1, hundred
+    div.s $f10, $f10, $f1   # f10 = 0.10
+
+    li $t8, 25
+    mtc1 $t8, $f12
+    cvt.s.w $f12, $f12
+    div.s $f12, $f12, $f1   # f12 = 0.25
+
+    j pedir_interes
+
+# Aquí empieza el ciclo que valida que el interés esté en el rango
+pedir_interes:
     li $v0, 4
     la $a0, Sms_4         # "Ingrese el interes del prestamo en decimal: "
     syscall
@@ -366,72 +459,29 @@ loop_interes:
     mtc1 $at, $f6
     cvt.s.w $f6, $f6
     c.lt.s $f2, $f6
+    bc1t error_interesNegativo
+
+    # Verificar si está dentro del rango permitido
+    c.lt.s $f2, $f10      # interés < mínimo
     bc1t error_interes
 
-    # Validar según el plazo (en meses, en $t6)
-
-    li $t9, 12
-    blt $t6, $t9, validar_plazo_corto     # Menor a 12
-    li $t9, 25
-    blt $t6, $t9, validar_plazo_medio     # Entre 12 y 24
-    j validar_plazo_largo                # Mayor a 24
-
-validar_plazo_corto:
-    li $t8, 25
-    mtc1 $t8, $f10       # f10 = 25
-    cvt.s.w $f10, $f10
-    l.s $f1, hundred     # <--- NUEVO: cargar 100 en $f1
-    div.s $f10, $f10, $f1   # f10 = 0.25
-
-    li $t8, 40
-    mtc1 $t8, $f12       # f12 = 40
-    cvt.s.w $f12, $f12
-    div.s $f12, $f12, $f1   # f12 = 0.40
-
-    j comparar_rangos
-
-validar_plazo_medio:
-    li $t8, 15
-    mtc1 $t8, $f10
-    cvt.s.w $f10, $f10
-    l.s $f1, hundred     # <--- NUEVO: cargar 100 en $f1
-    div.s $f10, $f10, $f1   # f10 = 0.15
-
-    li $t8, 30
-    mtc1 $t8, $f12
-    cvt.s.w $f12, $f12
-    div.s $f12, $f12, $f1   # f12 = 0.30
-
-    j comparar_rangos
-
-validar_plazo_largo:
-    li $t8, 10
-    mtc1 $t8, $f10
-    cvt.s.w $f10, $f10
-    l.s $f1, hundred     # <--- NUEVO: cargar 100 en $f1
-    div.s $f10, $f10, $f1   # f10 = 0.10
-
-    li $t8, 25
-    mtc1 $t8, $f12
-    cvt.s.w $f12, $f12
-    div.s $f12, $f12, $f1   # f12 = 0.25
-
-    j comparar_rangos
-
-comparar_rangos:
-    c.lt.s $f2, $f10     # interés < mínimo
-    bc1t error_interes
-
-    c.le.s $f12, $f2     # interés > máximo
+    c.lt.s $f12, $f2      # interés > máximo
     bc1t error_interes
 
     j continue_interest_ok
+
+error_interesNegativo:
+    li $v0, 4
+    la $a0, Sms_ErrorInteresNegativo
+    syscall
+    j pedir_interes
 
 error_interes:
     li $v0, 4
     la $a0, Sms_ErrorInteres
     syscall
-    j loop_interes
+    j pedir_interes
+
 
 continue_interest_ok:
     # Si el plazo se ingresó en años (flag = 1), convertir el interés anual a mensual
@@ -473,7 +523,15 @@ error_monto:
  
 print_info:
     li $v0, 4
+    la $a0, hashtags
+    syscall
+
+    li $v0, 4
     la $a0, info_header
+    syscall
+
+    li $v0, 4
+    la $a0, hashtags
     syscall
 
     li $v0, 4
