@@ -1,8 +1,8 @@
 .data
     .align 2 
-    Interes:      .space 80       # Arreglo para el interés del préstamo 
-    Amortizacion: .space 80       # Arreglo para la amortización del préstamo
-    Saldo:        .space 80       # Arreglo para el saldo del préstamo
+    Interes:      .space 960       # Arreglo para el interés del préstamo 
+    Amortizacion: .space 960       # Arreglo para la amortización del préstamo
+    Saldo:        .space 960       # Arreglo para el saldo del préstamo
  
     Nombre:       .space 80       # Variable para el nombre del beneficiario
     FormatoPlazo: .space 80       # Variable para el formato del plazo del préstamo    
@@ -10,6 +10,8 @@
 
     zero:.float 0.0
     one:.float 1.0
+    hundred: .float 100.0
+
  
     Sms_Menu: .asciiz "\n\nEste es el menu: \n1. Calculo de amortización\n2. Cambiar moneda de tabla \n3. Salir\nIngrese la opcion deseada: "
     Sms_0: .asciiz "Bienvenido a la amortizacion de prestamos!!!!!\n"
@@ -120,6 +122,7 @@ main:
     l.s   $f20, dollar_rate   
     mfc1  $s5, $f20           # Guarda factor de dolares en $s5
     la    $s6, dolares        # Guarda $ en $s6
+    la    $s7, dolaresString  # Guarda nombre de la moneda en $s7
 
     j menu
 
@@ -174,6 +177,7 @@ opcion_dolares:
     l.s   $f20, dollar_rate   # Factor para Dólar
     mfc1  $s5, $f20            
     la    $s6, dolares        # Símbolo "$"
+    la    $s7, dolaresString   # Nombre de la moneda
     
     j menu
 
@@ -181,6 +185,7 @@ opcion_euros:
     l.s   $f20, euro_rate      # Factor para Euro
     mfc1  $s5, $f20
     la    $s6, euro            # Símbolo "€"
+    la    $s7, eurosString      # Nombre de la moneda
 
     j menu
 
@@ -188,6 +193,7 @@ opcion_libras:
     l.s   $f20, libra_rate     # Factor para Libra Esterlina
     mfc1  $s5, $f20
     la    $s6, libra           # Símbolo "£"
+    la    $s7, librasString     # Nombre de la moneda
 
     j menu
 
@@ -195,6 +201,7 @@ opcion_francos:
     l.s   $f20, franco_rate    # Factor para Franco Suizo
     mfc1  $s5, $f20
     la    $s6, franco          # Símbolo "CHF"
+    la    $s7, francosString   # Nombre de la moneda
 
     j menu
 
@@ -202,6 +209,7 @@ opcion_aud:
     l.s   $f20, aud_rate       # Factor para Dólar Australiano
     mfc1  $s5, $f20
     la    $s6, aud             # Símbolo "A$"
+    la    $s7, audString       # Nombre de la moneda
 
     j menu
 
@@ -354,28 +362,89 @@ loop_interes:
     mov.s $f2, $f0        # Guardar el interés en $f2
 
     # Verificar si el interés es negativo
-    li $at, 0 # Inicializar $at a 0
-    mtc1 $at, $f6  # Cargar 0.0 en $f6
-    cvt.s.w $f6, $f6      # f6 = 0.0
-    c.lt.s $f2, $f6       # Comparar si f2 < 0
+    li $at, 0
+    mtc1 $at, $f6
+    cvt.s.w $f6, $f6
+    c.lt.s $f2, $f6
+    bc1t error_interes
+
+    # Validar según el plazo (en meses, en $t6)
+
+    li $t9, 12
+    blt $t6, $t9, validar_plazo_corto     # Menor a 12
+    li $t9, 25
+    blt $t6, $t9, validar_plazo_medio     # Entre 12 y 24
+    j validar_plazo_largo                # Mayor a 24
+
+validar_plazo_corto:
+    li $t8, 25
+    mtc1 $t8, $f10       # f10 = 25
+    cvt.s.w $f10, $f10
+    l.s $f1, hundred     # <--- NUEVO: cargar 100 en $f1
+    div.s $f10, $f10, $f1   # f10 = 0.25
+
+    li $t8, 40
+    mtc1 $t8, $f12       # f12 = 40
+    cvt.s.w $f12, $f12
+    div.s $f12, $f12, $f1   # f12 = 0.40
+
+    j comparar_rangos
+
+validar_plazo_medio:
+    li $t8, 15
+    mtc1 $t8, $f10
+    cvt.s.w $f10, $f10
+    l.s $f1, hundred     # <--- NUEVO: cargar 100 en $f1
+    div.s $f10, $f10, $f1   # f10 = 0.15
+
+    li $t8, 30
+    mtc1 $t8, $f12
+    cvt.s.w $f12, $f12
+    div.s $f12, $f12, $f1   # f12 = 0.30
+
+    j comparar_rangos
+
+validar_plazo_largo:
+    li $t8, 10
+    mtc1 $t8, $f10
+    cvt.s.w $f10, $f10
+    l.s $f1, hundred     # <--- NUEVO: cargar 100 en $f1
+    div.s $f10, $f10, $f1   # f10 = 0.10
+
+    li $t8, 25
+    mtc1 $t8, $f12
+    cvt.s.w $f12, $f12
+    div.s $f12, $f12, $f1   # f12 = 0.25
+
+    j comparar_rangos
+
+comparar_rangos:
+    c.lt.s $f2, $f10     # interés < mínimo
+    bc1t error_interes
+
+    c.le.s $f12, $f2     # interés > máximo
     bc1t error_interes
 
     j continue_interest_ok
+
 error_interes:
     li $v0, 4
     la $a0, Sms_ErrorInteres
     syscall
     j loop_interes
+
 continue_interest_ok:
     # Si el plazo se ingresó en años (flag = 1), convertir el interés anual a mensual
     li $t0, 1
     beq $s3, $t0, convert_interest
     j loop_monto
+
 convert_interest:
     li $t0, 12
     mtc1 $t0, $f8
     cvt.s.w $f8, $f8
     div.s $f2, $f2, $f8    # Por ejemplo, 0.12/12 = 0.01
+    j loop_monto
 
 
 loop_monto:
@@ -791,6 +860,10 @@ generarTablaDolares:
 
     li $v0, 4
     la $a0, headerTablaDolares 
+    syscall
+
+    li $v0, 4
+    move $a0, $s7       
     syscall
 
     li $v0, 4
