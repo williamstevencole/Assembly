@@ -14,6 +14,15 @@
     Sms_4: .asciiz "Ingrese el interes del prestamo en decimal: "
     Sms_5: .asciiz "Ingrese el saldo del prestamo: "
     Sms_6: .asciiz "La tasa de interes es Mensual o Anual? "
+    
+    Sms_ErrorPlazo: .asciiz "Error: el prestamo no puede exceder de 240 meses o 20 años.\n"
+    Sms_ErrorInteres: .asciiz "Error: el interes no puede ser negativo.\n"
+    Sms_ErrorMonto: .asciiz "Error: el monto del prestamo no puede ser negativo.\n"
+    Sms_ErrorFormato: .asciiz "Error: el formato del plazo no es correcto.\n"
+    Sms_ErrorNombre: .asciiz "Error: el nombre no puede estar vacío.\n"
+
+    Porcentaje: .asciiz "%"
+    Espacio: .asciiz " "
  
     MesesStr: .asciiz "Meses"
     AnosStr:  .asciiz "Años"
@@ -22,7 +31,7 @@
     # Cadenas para imprimir la información recopilada
     info_header:  .asciiz "\nInformación recopilada:\n"
     info_name:    .asciiz "Nombre: "
-    info_plazo:   .asciiz "Plazo (meses): "
+    info_plazo:   .asciiz "Plazo: "
     info_interes: .asciiz "Interes: "
     info_monto:   .asciiz "Monto del prestamo: "
     info_cuota:   .asciiz "Cuota: "
@@ -63,141 +72,232 @@
 .globl main
  
 main:
-    # Inicializaciones de variables reservadas para arreglos:
-	li   $t0, 0         # contador de elementos en arreglo de Interes
-	la   $t1, Interes   # base del arreglo de Intereses
- 
-	li   $t2, 0         # contador de elementos en arreglo de Amortizacion
-	la   $t3, Amortizacion   # base del arreglo de Amortizaciones
- 
-	li   $t4, 0         # contador de elementos en arreglo de Saldo
-	la   $t5, Saldo     # base del arreglo de Saldo
- 
+    # Inicializacion
+    li   $t0, 0         # contador de elementos en arreglo de Interes
+    la   $t1, Interes   # base del arreglo de Intereses
+
+    li   $t2, 0         # contador de elementos en arreglo de Amortizacion
+    la   $t3, Amortizacion   # base del arreglo de Amortizaciones
+
+    li   $t4, 0         # contador de elementos en arreglo de Saldo
+    la   $t5, Saldo     # base del arreglo de Saldo
+
     # Imprimir mensaje de bienvenida
     li $v0, 4
     la $a0, Sms_0
     syscall
- 
-    # Pedir el nombre del beneficiario
+
+# Pedir el nombre del beneficiario 
+nombre_input:
     li $v0, 4
     la $a0, Sms_1
     syscall
- 
+
     li $v0, 8            
     la $a0, Nombre       
     li $a1, 80           
     syscall
- 
-    # Convertir el nombre a Title Case
+
+    lb $t7, Nombre      # Revisar el primer carácter
+    beqz $t7, error_nombre
+    j nombre_ok
+error_nombre:
+    li $v0, 4
+    la $a0, Sms_ErrorNombre
+    syscall
+    j nombre_input
+nombre_ok:
     la $a0, Nombre   
     jal upper_case
- 
-    # Bucle para pedir el formato del plazo
+
+   
+# Bucle para pedir el formato del plazo
 loop_format:
     li $v0, 4
     la $a0, Sms_2
     syscall
- 
+
     li $v0, 8
     la $a0, FormatoPlazo
     li $a1, 80
     syscall
- 
+
     la $a0, FormatoPlazo
     jal upper_case
- 
+
     la $a0, FormatoPlazo
     jal remove_newline
- 
+
     # Comparar con "Meses"
     la $a0, FormatoPlazo   
     la $a1, MesesStr       
     jal strcmp             
     beq $v0, $zero, plazoMeses  # Si son iguales, $v0 == 0
- 
+
     # Comparar con "Años"
     la $a0, FormatoPlazo
     la $a1, AnosStr
     jal strcmp
     beq $v0, $zero, plazoAnios   # Si son iguales, $v0 == 0
- 
-    # Comparar con "Salir"
-    la $a0, FormatoPlazo
-    la $a1, SalirStr
-    jal strcmp
-    beq $v0, $zero, exit_prog    # Si son iguales, salir
- 
+
     j loop_format
- 
+
 exit_prog:
     li $v0, 10
     syscall
- 
+
+# Si el formato es "Meses", continuar con la entrada del plazo en meses
 plazoMeses:
     li $v0, 4
     la $a0, Sms_3
     syscall
- 
+
     li $v0, 5
     syscall
-    move $t6, $v0   # Guardar el plazo ingresado (en meses) en $t6
-    j continue_program1
- 
+    move $t6, $v0       # Guardar el plazo ingresado (en meses) en $t6
+    move $s4, $v0       # Guardar el valor original en $s4
+
+    # Si el plazo es mayor a 240 meses, mostrar error
+    bgt $t6, 240, error_plazo_mes
+    li $s3, 0           # Flag = 0: plazo ingresado en meses
+    j loop_interes
+
+error_plazo_mes:
+    li $v0, 4
+    la $a0, Sms_ErrorPlazo
+    syscall
+    j plazoMeses
+
+# Si el formato es "Años", continuar con la entrada del plazo en años
 plazoAnios:
     li $v0, 4
     la $a0, Sms_3
     syscall
- 
+
     li $v0, 5
     syscall
-    move $t6, $v0   # Guardar el plazo ingresado (en años) en $t6
-    li $s0, 12     # Cargar 12 en $s0
+    move $s4, $v0       # Guardar el valor original (en años) en $s4
+    move $t6, $v0       # Guardar el plazo ingresado en $t6
+    # Si el plazo es mayor a 20 años, mostrar error
+    bgt $t6, 20, error_plazo_anios
+
+    li $s3, 1           # Flag = 1: plazo ingresado en años
+    li $s0, 12         # Cargar 12 en $s0
     mul $t6, $t6, $s0   # Convertir el plazo a meses
-    j continue_program1
- 
-continue_program1:
-    # Solicitar el interés del préstamo (float)
+    j loop_interes
+
+error_plazo_anios:
+    li $v0, 4
+    la $a0, Sms_ErrorPlazo
+    syscall
+    j plazoAnios
+
+# Bucle para pedir el interés del préstamo
+loop_interes:
     li $v0, 4
     la $a0, Sms_4         # "Ingrese el interes del prestamo en decimal: "
     syscall
- 
+
     li $v0, 6             # Leer float
     syscall
     mov.s $f2, $f0        # Guardar el interés en $f2
- 
-    # Solicitar el monto del préstamo (float)
+
+    # Verificar si el interés es negativo
+    li $at, 0 # Inicializar $at a 0
+    mtc1 $at, $f6  # Cargar 0.0 en $f6
+    cvt.s.w $f6, $f6      # f6 = 0.0
+    c.lt.s $f2, $f6       # Comparar si f2 < 0
+    bc1t error_interes
+
+    j continue_interest_ok
+error_interes:
+    li $v0, 4
+    la $a0, Sms_ErrorInteres
+    syscall
+    j loop_interes
+continue_interest_ok:
+    # Si el plazo se ingresó en años (flag = 1), convertir el interés anual a mensual
+    li $t0, 1
+    beq $s3, $t0, convert_interest
+    j loop_monto
+convert_interest:
+    li $t0, 12
+    mtc1 $t0, $f8
+    cvt.s.w $f8, $f8
+    div.s $f2, $f2, $f8    # Por ejemplo, 0.12/12 = 0.01
+
+
+loop_monto:
     li $v0, 4
     la $a0, Sms_5         # "Ingrese el saldo del prestamo: "
     syscall
- 
+
     li $v0, 6             # Leer float
     syscall
     mov.s $f4, $f0        # Guardar el monto en $f4
- 
+
+    li $at, 0
+    mtc1 $at, $f6
+    cvt.s.w $f6, $f6      # f6 = 0.0
+    
+    c.lt.s $f4, $f6       # Si monto < 0.0
+    bc1t error_monto
+   
     j print_info
+error_monto:
+    li $v0, 4
+    la $a0, Sms_ErrorMonto
+    syscall
+    j loop_monto
+
  
 print_info:
     li $v0, 4
     la $a0, info_header
     syscall
- 
+
     li $v0, 4
     la $a0, info_name
     syscall
     li $v0, 4
     la $a0, Nombre
     syscall
- 
+
     li $v0, 4
     la $a0, info_plazo
     syscall
+
     li $v0, 1
-    move $a0, $t6
+    move $a0, $s4
     syscall
+    
+    li $t0, 0
+    beq $s3, $t0, print_meses
+
+    li $v0, 4
+    la $a0, Espacio
+    syscall
+
+    li $v0, 4
+    la $a0, AnosStr
+    syscall
+    
+    j print_plazo_end
+
+print_meses:
+    li $v0, 4
+    la $a0, Espacio
+    syscall
+
+    li $v0, 4
+    la $a0, MesesStr
+    syscall
+
+print_plazo_end:
     li $v0, 4
     la $a0, new_line
     syscall
- 
+
     li $v0, 4
     la $a0, info_interes
     syscall
@@ -205,9 +305,12 @@ print_info:
     mov.s $f12, $f2
     syscall
     li $v0, 4
+    la $a0, Porcentaje
+    syscall
+    li $v0, 4
     la $a0, new_line
     syscall
- 
+
     li $v0, 4
     la $a0, info_monto
     syscall
@@ -215,18 +318,20 @@ print_info:
     mov.s $f12, $f4
     syscall
     li $v0, 4
+    la $a0, lempiras
+    syscall
+    li $v0, 4
     la $a0, new_line
     syscall
- 
-    # Inicializar el contador de meses para el ciclo de tabla en $s0
+
     li $s0, 0        
-    # Guardar el monto del préstamo en el arreglo de Saldo
+
     s.s $f4, 0($t5)
     addi $t5, $t5, 4  # Incrementar el puntero del arreglo de Saldo
     addi $t4, $t4, 1  # Incrementar el contador de elementos en el arreglo de Saldo
- 
+
     j generarTablaLempiras
- 
+
 generarTablaLempiras:
     # Si el contador de meses ($s0) es mayor o igual al plazo ($t6), saltar a induccionLempiras
     bge $s0, $t6, induccionLempiras
@@ -237,12 +342,9 @@ generarTablaLempiras:
     j calcularCuotaLempiras
  
 mes0Lempiras:
-    #Assembly
     li $v0, 4
     la $a0, hashtags
     syscall
- 
-    #print(hashtags) en python
  
     li $v0, 4
     la $a0, headerTablaLempiras
